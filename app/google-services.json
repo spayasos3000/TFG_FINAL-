@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "898945079598",
+    "project_id": "tfgm-7f2fa",
+    "storage_bucket": "tfgm-7f2fa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:898945079598:android:9df5d4f93ba2d01780c2bf",
+        "android_client_info": {
+          "package_name": "com.manuel.fakenewsdetector"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "898945079598-o11gg36eedt8h80lrda06n2pnmkk16q0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8NWzup8Nxp9KoOyMwWb2_UzYexrPj9AM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "898945079598-o11gg36eedt8h80lrda06n2pnmkk16q0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
