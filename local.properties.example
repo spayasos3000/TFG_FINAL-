@@ -1,8 +1,0 @@
-# Firebase Configuration
-# Get these from Firebase Console: https://console.firebase.google.com/
-# Your Firebase project should have Android app configured with package name: com.manuel.fakenewsdetector
-
-# Gemini API Key
-# Get this from: https://makersuite.google.com/app/apikey
-# Enable Generative Language API in Google Cloud Console
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
