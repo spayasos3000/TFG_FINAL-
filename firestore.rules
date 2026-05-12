@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Reglas para usuarios
+    match /users/{userId} {
+      // Los usuarios pueden leer su propio documento
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Los usuarios pueden escribir su propio documento
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Solo los admins pueden leer/escribir documentos de otros usuarios
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Reglas para historial de análisis de un usuario
+    match /users/{userId}/history/{analysisId} {
+      // Los usuarios pueden leer/escribir su propio historial
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Los admins pueden leer el historial de cualquier usuario
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Los admins pueden escribir historial de cualquier usuario
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Reglas para la lista negra global
+    match /blacklist/{domainId} {
+      // Solo los admins pueden leer/escribir la lista negra
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Reglas para datos globales del sistema (stats, etc.)
+    match /system/{documentId} {
+      // Solo los admins pueden leer/escribir datos del sistema
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}

@@ -18,7 +18,8 @@ fun PrimaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    contentDescription: String? = null
 ) {
     Button(
         onClick = onClick,
@@ -47,7 +48,8 @@ fun SecondaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    contentDescription: String? = null
 ) {
     OutlinedButton(
         onClick = onClick,

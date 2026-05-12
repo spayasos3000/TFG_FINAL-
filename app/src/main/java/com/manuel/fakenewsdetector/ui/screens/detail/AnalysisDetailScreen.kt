@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +28,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.manuel.fakenewsdetector.domain.model.AnalysisResult
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.manuel.fakenewsdetector.domain.model.NewsAnalysis
 import com.manuel.fakenewsdetector.domain.model.Verdict
 import com.manuel.fakenewsdetector.ui.components.AppBar
@@ -51,38 +54,14 @@ import java.util.Locale
 fun AnalysisDetailScreen(
     analysisId: String,
     onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: AnalysisDetailViewModel = viewModel()
 ) {
-    // Datos de ejemplo - en producción se obtendrían del ViewModel
-    val analysis = remember {
-        NewsAnalysis(
-            id = analysisId,
-            headline = "Científicos descubren cura para el cáncer",
-            url = "https://example.com/noticia-falsa",
-            content = "Un grupo de científicos anónimos ha anunciado el descubrimiento de una cura universal para el cáncer. La noticia se ha viralizado en redes sociales sin ninguna fuente verificable.",
-            result = AnalysisResult(
-                verdict = Verdict.FALSA,
-                confidenceScore = 0.92,
-                explanation = "Esta noticia presenta múltiples señales de desinformación: fuentes anónimas, afirmaciones exageradas sin evidencia científica, y ausencia de revisión por pares.",
-                detectedPatterns = listOf(
-                    "Fuentes anónimas no verificables",
-                    "Afirmaciones médicas sin evidencia",
-                    "Sensacionalismo exagerado",
-                    "Ausencia de fuentes científicas"
-                ),
-                sourcesChecked = 15,
-                similarReliableArticles = emptyList(),
-                blacklistedDomainMatch = true
-            ),
-            analyzedAt = System.currentTimeMillis() - 3600000,
-            isFavorite = false
-        )
+    val uiState by viewModel.uiState.collectAsState()
+    
+    LaunchedEffect(analysisId) {
+        viewModel.loadAnalysis(analysisId)
     }
-
-    var isFavorite by remember { mutableStateOf(analysis.isFavorite) }
-
-    val dateFormat = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault())
-    val formattedDate = dateFormat.format(Date(analysis.analyzedAt))
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -92,68 +71,104 @@ fun AnalysisDetailScreen(
                 navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNavigationClick = onBackClick,
                 actions = {
-                    IconButton(onClick = { isFavorite = !isFavorite }) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (isFavorite) "Quitar favorito" else "Añadir favorito",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(onClick = { /* Compartir */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Compartir",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                    val successState = uiState as? DetailUiState.Success
+                    if (successState != null) {
+                        IconButton(onClick = { /* Toggle favorite */ }) {
+                            Icon(
+                                imageVector = if (successState.analysis.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (successState.analysis.isFavorite) "Quitar favorito" else "Añadir favorito",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(onClick = { /* Compartir */ }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Compartir",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // URL
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Text(
-                    text = analysis.url ?: "URL no disponible",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(12.dp)
-                )
+        when (uiState) {
+            is DetailUiState.Loading -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
+            is DetailUiState.Error -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = (uiState as DetailUiState.Error).message,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            is DetailUiState.Success -> {
+                val analysis = (uiState as DetailUiState.Success).analysis
+                var isFavorite by remember { mutableStateOf(analysis.isFavorite) }
 
-            // Title
-            Text(
-                text = analysis.headline ?: "Sin título",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+                val dateFormat = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault())
+                val formattedDate = dateFormat.format(Date(analysis.analyzedAt))
 
-            // Date
-            Text(
-                text = "Analizado el $formattedDate",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // URL
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Text(
+                            text = analysis.url ?: analysis.content ?: "URL no disponible",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
 
-            HorizontalDivider()
+                    // Title
+                    Text(
+                        text = analysis.headline ?: "Sin título",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-            // Verdict section
-            analysis.result?.let { result ->
+                    // Date
+                    Text(
+                        text = "Analizado el $formattedDate",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    HorizontalDivider()
+
+                    // Verdict section
+                    analysis.result?.let { result ->
                 SectionLabel(text = "Veredicto")
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -247,6 +262,8 @@ fun AnalysisDetailScreen(
                 text = "Analizar otra noticia",
                 onClick = onBackClick
             )
+        }
+            }
         }
     }
 }

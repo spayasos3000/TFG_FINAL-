@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,9 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -45,6 +48,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,10 +66,11 @@ import com.manuel.fakenewsdetector.ui.components.SecondaryButton
 import com.manuel.fakenewsdetector.ui.components.SectionLabel
 import com.manuel.fakenewsdetector.ui.components.StatCardCompact
 import com.manuel.fakenewsdetector.ui.components.VerdictBadge
+import com.manuel.fakenewsdetector.ui.screens.history.HistoryViewModel
 
 @Composable
 fun MainScreen(
-    isAdminMode: Boolean,
+    isAdmin: Boolean,
     onAnalyzeClick: () -> Unit,
     onNewsClick: (String) -> Unit,
     onNavigate: (String) -> Unit,
@@ -74,9 +81,10 @@ fun MainScreen(
     var inputText by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val historyViewModel: HistoryViewModel = viewModel()
 
     // 4 tabs en modo admin, 3 tabs en modo normal
-    val navItems = if (isAdminMode) {
+    val navItems = if (isAdmin) {
         listOf(
             NavItem("Inicio", Icons.Default.Home, "home"),
             NavItem("Historial", Icons.AutoMirrored.Filled.List, "history"),
@@ -91,44 +99,8 @@ fun MainScreen(
         )
     }
 
-    // Datos de ejemplo
-    val recentAnalyses = remember {
-        listOf(
-            NewsAnalysis(
-                id = "1",
-                headline = "Científicos descubren cura para el cáncer",
-                url = "https://example.com/noticia1",
-                result = com.manuel.fakenewsdetector.domain.model.AnalysisResult(
-                    verdict = Verdict.FALSA,
-                    confidenceScore = 0.92,
-                    explanation = "Noticia sin fuentes verificables"
-                ),
-                analyzedAt = System.currentTimeMillis() - 3600000
-            ),
-            NewsAnalysis(
-                id = "2",
-                headline = "Nueva ley de protección de datos entra en vigor",
-                url = "https://example.com/noticia2",
-                result = com.manuel.fakenewsdetector.domain.model.AnalysisResult(
-                    verdict = Verdict.FIABLE,
-                    confidenceScore = 0.88,
-                    explanation = "Confirmada por fuentes oficiales"
-                ),
-                analyzedAt = System.currentTimeMillis() - 86400000
-            ),
-            NewsAnalysis(
-                id = "3",
-                headline = "Descubrimiento arqueológico en Egipto",
-                url = "https://example.com/noticia3",
-                result = com.manuel.fakenewsdetector.domain.model.AnalysisResult(
-                    verdict = Verdict.DUDOSA,
-                    confidenceScore = 0.65,
-                    explanation = "Fuentes no verificadas"
-                ),
-                analyzedAt = System.currentTimeMillis() - 172800000
-            )
-        )
-    }
+    // Cargar análisis recientes desde Firestore
+    val recentAnalyses by historyViewModel.historyItems.collectAsState()
 
     // Show error in snackbar
     LaunchedEffect(uiState) {
@@ -173,24 +145,22 @@ fun MainScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Main Input Section
-            SectionLabel(text = "Analizar Noticia")
+            SectionLabel(text = "Analizar Contenido de Noticia")
 
             // Input field
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { inputText = it },
-                placeholder = { 
-                    Text("Pega aquí el titular, texto o URL de la noticia...") 
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary
+                placeholder = { Text("Pega aquí el texto completo de la noticia para analizar...") },
+                label = { Text("Texto de la noticia") },
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 6,
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Send
                 ),
-                minLines = 3,
-                maxLines = 5
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary
+                )
             )
 
             // Analyze button (disabled if empty)
@@ -358,13 +328,13 @@ fun MainScreen(
             ) {
                 StatCardCompact(
                     title = "Análisis este mes",
-                    value = "24",
+                    value = recentAnalyses.size.toString(),
                     icon = Icons.Default.CheckCircle
                 )
 
                 StatCardCompact(
                     title = "Noticias falsas detectadas",
-                    value = "8",
+                    value = recentAnalyses.count { it.result?.verdict == Verdict.FALSA }.toString(),
                     icon = Icons.Default.CheckCircle
                 )
             }

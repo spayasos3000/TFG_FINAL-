@@ -30,7 +30,8 @@ fun NewsCard(
     news: NewsAnalysis,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    trailingIcon: ImageVector? = null
+    trailingIcon: ImageVector? = null,
+    contentDescription: String? = null
 ) {
     Card(
         modifier = modifier
@@ -61,7 +62,7 @@ fun NewsCard(
                 if (trailingIcon != null) {
                     Icon(
                         imageVector = trailingIcon,
-                        contentDescription = null,
+                        contentDescription = "Acción adicional",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

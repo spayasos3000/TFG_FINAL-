@@ -1,5 +1,9 @@
 package com.manuel.fakenewsdetector.ui.screens.main
 
+import android.Manifest
+import android.app.Application
+import androidx.annotation.RequiresPermission
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -7,6 +11,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.Timestamp
 import com.manuel.fakenewsdetector.data.repository.NewsRepository
 import com.manuel.fakenewsdetector.domain.model.AnalysisResult
+import com.manuel.fakenewsdetector.notifications.AppNotificationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,12 +28,13 @@ sealed class MainUiState {
     data class Error(val message: String) : MainUiState()
 }
 
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow<MainUiState>(MainUiState.Idle)
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     private val repository = NewsRepository()
+    private val notificationManager = AppNotificationManager(application)
     
     // Control de ritmo: última llamada y delay mínimo
     private var lastAnalysisTime: Long = 0
@@ -66,6 +72,29 @@ class MainViewModel : ViewModel() {
                 }
                 _uiState.value = MainUiState.Success(result)
                 saveToFirestore(input, result)
+                
+                // Mostrar notificación del análisis completado (solo si tenemos permisos)
+                val headline = input.takeIf { it.length < 100 } ?: input.substring(0, 100)
+                try {
+                    if (notificationManager.hasNotificationPermission()) {
+                        notificationManager.showAnalysisCompleteNotification(
+                            headline = headline,
+                            verdict = result.verdict,
+                            confidenceScore = result.confidenceScore
+                        )
+                        
+                        // Si es noticia falsa, mostrar alerta adicional
+                        if (result.verdict == com.manuel.fakenewsdetector.domain.model.Verdict.FALSA) {
+                            notificationManager.showFakeNewsAlert(
+                                headline = headline,
+                                explanation = result.explanation
+                            )
+                        }
+                    }
+                } catch (e: SecurityException) {
+                    // Silenciosamente ignorar errores de permisos de notificación
+                    // Las notificaciones son opcionales, no deben romper la funcionalidad principal
+                }
             } catch (e: Exception) {
                 _uiState.value = MainUiState.Error(
                     e.message ?: "Error al analizar la noticia"
@@ -82,23 +111,38 @@ class MainViewModel : ViewModel() {
     ) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         
-        FirebaseFirestore.getInstance()
-            .collection("users")
-            .document(uid)
-            .collection("history")
-            .add(
-                mapOf(
-                    "query" to input,
-                    "result" to result.verdict.name.lowercase(),
-                    "confidence" to result.confidenceScore,
-                    "summary" to result.explanation,
-                    "sources" to result.similarReliableArticles,
-                    "alternativeNewsTitle" to result.alternativeNewsTitle,
-                    "alternativeNewsUrl" to result.alternativeNewsUrl,
-                    "alternativeNewsDescription" to result.alternativeNewsDescription,
-                    "timestamp" to Timestamp.now()
-                )
-            )
+        viewModelScope.launch {
+            try {
+                FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(uid)
+                    .collection("history")
+                    .add(
+                        hashMapOf(
+                            "headline" to (input.takeIf { it.length < 100 } ?: input.substring(0, 100)),
+                            "url" to if (input.startsWith("http")) input else null,
+                            "content" to input,
+                            "verdict" to when (result.verdict) {
+                                com.manuel.fakenewsdetector.domain.model.Verdict.FIABLE -> "Fiable"
+                                com.manuel.fakenewsdetector.domain.model.Verdict.DUDOSA -> "Dudosa"
+                                com.manuel.fakenewsdetector.domain.model.Verdict.FALSA -> "Falsa"
+                            },
+                            "confidenceScore" to result.confidenceScore,
+                            "explanation" to result.explanation,
+                            "detectedPatterns" to result.detectedPatterns,
+                            "sourcesChecked" to result.sourcesChecked,
+                            "similarReliableArticles" to result.similarReliableArticles,
+                            "blacklistedDomainMatch" to result.blacklistedDomainMatch,
+                            "alternativeNewsTitle" to result.alternativeNewsTitle,
+                            "alternativeNewsUrl" to result.alternativeNewsUrl,
+                            "alternativeNewsDescription" to result.alternativeNewsDescription,
+                            "analyzedAt" to Timestamp.now()
+                        )
+                    )
+            } catch (e: Exception) {
+                // Error guardando en Firestore, no crítico
+            }
+        }
     }
 
     fun resetState() {

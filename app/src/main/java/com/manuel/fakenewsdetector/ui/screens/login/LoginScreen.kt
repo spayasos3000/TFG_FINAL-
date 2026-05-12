@@ -1,6 +1,9 @@
 package com.manuel.fakenewsdetector.ui.screens.login
 
+import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +36,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.GoogleAuthProvider
 import com.manuel.fakenewsdetector.ui.components.PrimaryButton
 import com.manuel.fakenewsdetector.ui.components.SecondaryButton
 
@@ -40,8 +47,8 @@ import com.manuel.fakenewsdetector.ui.components.SecondaryButton
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel,
+    modifier: Modifier = Modifier
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -52,6 +59,24 @@ fun LoginScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+
+    // Google Sign-In launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            
+            if (idToken != null) {
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                viewModel.signInWithGoogleCredential(credential)
+            }
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error al iniciar sesión con Google: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
 
     // Navigate on success
     LaunchedEffect(uiState) {
@@ -89,6 +114,24 @@ fun LoginScreen(
     fun onLoginClick() {
         if (validateFields()) {
             viewModel.login(email, password)
+        }
+    }
+
+    // Function to handle Google Sign-In
+    fun loginWithGoogle() {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("647941505651-9d8f7o1d2l8u8v4q3q6m0.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+
+        val googleSignInClient = GoogleSignIn.getClient(context, gso)
+        val signInIntent = googleSignInClient.signInIntent
+        
+        // Usar el launcher para iniciar el flujo de Google Sign-In
+        try {
+            googleSignInLauncher.launch(signInIntent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error al iniciar Google Sign-In: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -230,7 +273,7 @@ fun LoginScreen(
             SecondaryButton(
                 text = "Google",
                 onClick = { 
-                    Toast.makeText(context, "Próximamente", Toast.LENGTH_SHORT).show()
+                    loginWithGoogle()
                 },
                 enabled = uiState !is AuthUiState.Loading
             )

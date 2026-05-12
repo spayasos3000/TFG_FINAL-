@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -18,18 +19,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.manuel.fakenewsdetector.domain.model.AnalysisResult
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.manuel.fakenewsdetector.domain.model.NewsAnalysis
-import com.manuel.fakenewsdetector.domain.model.Verdict
 import com.manuel.fakenewsdetector.ui.components.AppBar
 import com.manuel.fakenewsdetector.ui.components.HistoryListItem
 import com.manuel.fakenewsdetector.ui.components.SectionHeader
@@ -38,70 +44,12 @@ import com.manuel.fakenewsdetector.ui.components.SectionHeader
 fun HistoryScreen(
     onBackClick: () -> Unit,
     onNewsClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: HistoryViewModel = viewModel()
 ) {
     var searchQuery by remember { mutableStateOf("") }
-
-    // Datos de ejemplo
-    val historyItems = remember {
-        listOf(
-            NewsAnalysis(
-                id = "1",
-                headline = "Científicos descubren cura para el cáncer",
-                url = "https://example.com/noticia1",
-                result = AnalysisResult(
-                    verdict = Verdict.FALSA,
-                    confidenceScore = 0.92,
-                    explanation = "Noticia sin fuentes verificables"
-                ),
-                analyzedAt = System.currentTimeMillis() - 3600000
-            ),
-            NewsAnalysis(
-                id = "2",
-                headline = "Nueva ley de protección de datos entra en vigor",
-                url = "https://example.com/noticia2",
-                result = AnalysisResult(
-                    verdict = Verdict.FIABLE,
-                    confidenceScore = 0.88,
-                    explanation = "Confirmada por fuentes oficiales"
-                ),
-                analyzedAt = System.currentTimeMillis() - 86400000
-            ),
-            NewsAnalysis(
-                id = "3",
-                headline = "Descubrimiento arqueológico en Egipto",
-                url = "https://example.com/noticia3",
-                result = AnalysisResult(
-                    verdict = Verdict.DUDOSA,
-                    confidenceScore = 0.65,
-                    explanation = "Fuentes no verificadas"
-                ),
-                analyzedAt = System.currentTimeMillis() - 172800000
-            ),
-            NewsAnalysis(
-                id = "4",
-                headline = "Resultados de las elecciones locales",
-                url = "https://example.com/noticia4",
-                result = AnalysisResult(
-                    verdict = Verdict.FIABLE,
-                    confidenceScore = 0.95,
-                    explanation = "Datos oficiales del ministerio"
-                ),
-                analyzedAt = System.currentTimeMillis() - 259200000
-            ),
-            NewsAnalysis(
-                id = "5",
-                headline = "Nuevo smartphone revolucionario",
-                url = "https://example.com/noticia5",
-                result = AnalysisResult(
-                    verdict = Verdict.FALSA,
-                    confidenceScore = 0.78,
-                    explanation = "Especificaciones exageradas"
-                ),
-                analyzedAt = System.currentTimeMillis() - 345600000
-            )
-        )
-    }
+    val historyItems by viewModel.historyItems.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     val filteredItems = historyItems.filter {
         it.headline?.contains(searchQuery, ignoreCase = true) == true ||
@@ -156,7 +104,12 @@ fun HistoryScreen(
                     SectionHeader(
                         title = "${filteredItems.size} análisis encontrados",
                         action = {
-                            IconButton(onClick = { /* Clear history */ }) {
+                            IconButton(onClick = { 
+                                viewModel.clearHistory(
+                                    onSuccess = { /* Historial borrado */ },
+                                    onError = { /* Error */ }
+                                )
+                            }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = "Borrar historial",
@@ -168,10 +121,33 @@ fun HistoryScreen(
                 }
 
                 items(filteredItems) { news ->
-                    HistoryListItem(
-                        news = news,
-                        onClick = { onNewsClick(news.id) }
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = {
+                            if (it == SwipeToDismissBoxValue.EndToStart) {
+                                viewModel.deleteAnalysis(news.id,
+                                    onSuccess = { /* Item eliminado */ },
+                                    onError = { /* Error */ }
+                                )
+                                true
+                            } else {
+                                false
+                            }
+                        }
                     )
+                    
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        backgroundContent = {
+                            // Red background when swiping
+                        },
+                        enableDismissFromStartToEnd = false,
+                        enableDismissFromEndToStart = true
+                    ) {
+                        HistoryListItem(
+                            news = news,
+                            onClick = { onNewsClick(news.id) }
+                        )
+                    }
                 }
             }
         }

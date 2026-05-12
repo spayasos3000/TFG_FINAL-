@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val LightColorScheme = lightColorScheme(
     primary = BrandBlue,
@@ -33,29 +34,29 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = BrandBluePale,
-    onPrimary = NavyBlue,
-    primaryContainer = NavyBlue,
-    onPrimaryContainer = BrandBluePale,
-    secondary = BrandBluePale,
-    onSecondary = NavyBlue,
-    secondaryContainer = NavyBlue,
-    onSecondaryContainer = BrandBluePale,
-    tertiary = VerdictSuccessPale,
-    onTertiary = VerdictSuccess,
-    tertiaryContainer = VerdictSuccess,
-    onTertiaryContainer = VerdictSuccessPale,
-    background = NavyBlue,
-    onBackground = NeutralBackground,
-    surface = TextHeading,
-    onSurface = NeutralSurface,
-    surfaceVariant = TextBody,
-    onSurfaceVariant = NeutralBackground,
-    outline = TextMuted,
-    error = VerdictDangerPale,
-    onError = VerdictDanger,
-    errorContainer = VerdictDanger,
-    onErrorContainer = VerdictDangerPale
+    primary = DarkPurplePrimary,
+    onPrimary = DarkPurpleOnPrimary,
+    primaryContainer = DarkPurpleContainer,
+    onPrimaryContainer = DarkPurpleOnContainer,
+    secondary = DarkPurpleSecondary,
+    onSecondary = DarkPurpleOnSecondary,
+    secondaryContainer = DarkPurpleSecondaryContainer,
+    onSecondaryContainer = DarkPurpleOnSecondaryContainer,
+    tertiary = VerdictSuccess,
+    onTertiary = Color.White,
+    tertiaryContainer = VerdictSuccessPale,
+    onTertiaryContainer = VerdictSuccess,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    error = VerdictDanger,
+    onError = Color.White,
+    errorContainer = VerdictDangerPale,
+    onErrorContainer = VerdictDanger
 )
 
 @Composable

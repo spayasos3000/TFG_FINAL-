@@ -7,6 +7,25 @@ val NavyBlue = Color(0xFF1F3864)
 val BrandBlue = Color(0xFF2E75B6)
 val BrandBluePale = Color(0xFFE0EDF8)
 
+// Dark Theme Purple Colors
+val DarkPurplePrimary = Color(0xFF6B46C1)
+val DarkPurpleOnPrimary = Color(0xFFE9D5FF)
+val DarkPurpleContainer = Color(0xFF4A2C6E)
+val DarkPurpleOnContainer = Color(0xFFD6BCFF)
+
+val DarkPurpleSecondary = Color(0xFF8B5CF6)
+val DarkPurpleOnSecondary = Color(0xFFF3E8FF)
+val DarkPurpleSecondaryContainer = Color(0xFF6B3AA0)
+val DarkPurpleOnSecondaryContainer = Color(0xFFE9D5FF)
+
+val DarkBackground = Color(0xFF1A1A1A)
+val DarkSurface = Color(0xFF2D2D3D)
+val DarkSurfaceVariant = Color(0xFF3A3A4A)
+val DarkOnBackground = Color(0xFFE6E1F5)
+val DarkOnSurface = Color(0xFFE6E1F5)
+val DarkOnSurfaceVariant = Color(0xFFCAC4D0)
+val DarkOutline = Color(0xFF938F99)
+
 // Verdict Colors
 val VerdictSuccess = Color(0xFF1A9D57)
 val VerdictSuccessPale = Color(0xFFE0F6EA)

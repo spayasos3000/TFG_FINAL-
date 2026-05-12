@@ -31,50 +31,73 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import com.manuel.fakenewsdetector.ui.screens.login.AuthViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.manuel.fakenewsdetector.domain.model.User
 import com.manuel.fakenewsdetector.ui.components.AppBar
+import com.manuel.fakenewsdetector.ui.components.PrimaryButton
 import com.manuel.fakenewsdetector.ui.components.SectionHeader
 import com.manuel.fakenewsdetector.ui.components.SettingRow
 import com.manuel.fakenewsdetector.ui.components.SettingRowSwitch
 import com.manuel.fakenewsdetector.ui.components.StatCard
+import com.manuel.fakenewsdetector.ui.screens.login.AuthViewModel
+import com.manuel.fakenewsdetector.ui.screens.login.UserData
 
 @Composable
 fun ProfileScreen(
-    isAdminMode: Boolean,
-    onAdminModeToggle: (Boolean) -> Unit,
+    userData: UserData?,
+    onLogoutClick: () -> Unit,
+    onNavigateToAdmin: (String) -> Unit,
     isDarkMode: Boolean,
     onDarkModeToggle: (Boolean) -> Unit,
-    onLogoutClick: () -> Unit,
     onEditProfileClick: () -> Unit,
     onDeleteAccountClick: () -> Unit,
-    onNavigateToAdmin: (String) -> Unit,
     onBackClick: () -> Unit,
     onPhotoSelected: (android.net.Uri) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel
 ) {
     var notificationsEnabled by remember { mutableStateOf(true) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var editedName by remember { mutableStateOf(userData?.displayName ?: "") }
 
     // Obtener datos del usuario de Firebase/Firestore
     val userData by viewModel.userData.collectAsState()
@@ -93,7 +116,7 @@ fun ProfileScreen(
                 navigationIcon = Icons.Default.ArrowBack,
                 onNavigationClick = onBackClick,
                 actions = {
-                    TextButton(onClick = onEditProfileClick) {
+                    TextButton(onClick = { showEditDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Editar",
@@ -215,32 +238,11 @@ fun ProfileScreen(
                 icon = Icons.Default.Settings
             )
 
-            SettingRow(
-                title = "Privacidad y seguridad",
-                subtitle = "Gestionar datos y permisos",
-                onClick = { /* Navegar a privacidad */ },
-                icon = Icons.Default.Lock
-            )
-
-            SettingRow(
-                title = "Ayuda y soporte",
-                subtitle = "Preguntas frecuentes y contacto",
-                onClick = { /* Navegar a ayuda */ },
-                icon = Icons.Default.Info
-            )
-
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // Admin section
-            SettingRowSwitch(
-                title = "Modo Administrador",
-                subtitle = "Activar funciones de administración",
-                checked = isAdminMode,
-                onCheckedChange = onAdminModeToggle,
-                icon = Icons.Default.Lock
-            )
-
-            if (isAdminMode) {
+            // Admin section - solo visible si el usuario tiene role "admin" en Firestore
+            val isAdmin = userData?.role == "admin"
+            if (isAdmin) {
                 SectionHeader(title = "Administración")
 
                 SettingRow(
@@ -255,6 +257,13 @@ fun ProfileScreen(
                     subtitle = "Ver todos los análisis",
                     onClick = { onNavigateToAdmin("history") },
                     icon = Icons.Default.Search
+                )
+
+                SettingRow(
+                    title = "Gestión de usuarios",
+                    subtitle = "Administrar roles de usuarios",
+                    onClick = { onNavigateToAdmin("users") },
+                    icon = Icons.Default.Person
                 )
 
                 SettingRow(
@@ -278,47 +287,93 @@ fun ProfileScreen(
             ) {
                 OutlinedButton(
                     onClick = onLogoutClick,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Text(
-                        text = "Cerrar sesión",
-                        color = MaterialTheme.colorScheme.error
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Cerrar sesión")
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                OutlinedButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
                     )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Eliminar cuenta")
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            TextButton(
-                onClick = onDeleteAccountClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
+        }
+    }
+    
+    // Diálogo de edición de perfil
+    EditProfileDialog(
+        isVisible = showEditDialog,
+        currentName = userName,
+        onDismiss = { showEditDialog = false },
+        onSave = { newName ->
+            viewModel.updateUserProfile(
+                displayName = newName,
+                onSuccess = {
+                    showEditDialog = false
+                },
+                onError = { error ->
+                    // Manejar error (podrías mostrar un snackbar)
+                    showEditDialog = false
+                }
+            )
+        }
+    )
+    
+    // Diálogo de confirmación de eliminación de cuenta
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
                 Text(
                     text = "Eliminar cuenta",
-                    color = MaterialTheme.colorScheme.error
+                    style = MaterialTheme.typography.headlineSmall
                 )
+            },
+            text = {
+                Text(
+                    text = "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer y se eliminarán todos tus datos permanentemente.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteAccountClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // App version
-            Text(
-                text = "Fake News Detector v1.0.0",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        )
     }
 }
 
@@ -378,5 +433,83 @@ fun ProfilePhotoPicker(
                 tint = MaterialTheme.colorScheme.onPrimary
             )
         }
+    }
+}
+
+// Diálogo de edición de perfil
+@Composable
+fun EditProfileDialog(
+    isVisible: Boolean,
+    currentName: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var editedName by remember { mutableStateOf(currentName) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    if (isVisible) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text(
+                    text = "Editar Perfil",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Actualiza tu información de perfil",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    OutlinedTextField(
+                        value = editedName,
+                        onValueChange = { editedName = it },
+                        label = { Text("Nombre") },
+                        placeholder = { Text("Ingresa tu nombre") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editedName.isNotBlank()) {
+                            isSaving = true
+                            onSave(editedName.trim())
+                        }
+                    },
+                    enabled = editedName.isNotBlank() && !isSaving
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Guardar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDismiss,
+                    enabled = !isSaving
+                ) {
+                    Text("Cancelar")
+                }
+            },
+            modifier = modifier
+        )
     }
 }

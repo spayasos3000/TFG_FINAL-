@@ -40,8 +40,8 @@ import com.manuel.fakenewsdetector.ui.components.SecondaryButton
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: AuthViewModel = viewModel()
+    viewModel: AuthViewModel,
+    modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
